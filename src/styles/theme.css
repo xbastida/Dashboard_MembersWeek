@@ -164,6 +164,7 @@ kbd {
   display: flex;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .map-main {
@@ -226,11 +227,16 @@ kbd {
 
 /* Control panel */
 .control-panel {
-  width: 320px;
-  flex-shrink: 0;
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+  width: 300px;
+  max-height: calc(100% - 40px);
   background: var(--panel);
   backdrop-filter: blur(12px);
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 24px 22px;
   display: flex;
   flex-direction: column;
@@ -465,7 +471,8 @@ kbd {
 
 .coverage-map-wrap {
   position: relative;
-  flex: 0 0 58%;
+  flex: 1;
+  min-height: 0;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -524,8 +531,7 @@ kbd {
 
 /* Metrics panel */
 .metrics-panel {
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -641,11 +647,16 @@ kbd {
     grid-column: 1 / -1;
   }
   .coverage-map-wrap {
-    flex: 1;
+    grid-column: 1;
+    grid-row: 2;
+    flex: unset;
     height: 100%;
   }
   .metrics-panel {
+    grid-column: 2;
+    grid-row: 2;
     min-height: 0;
+    overflow-y: auto;
   }
   .headline-value {
     font-size: 2.8rem;

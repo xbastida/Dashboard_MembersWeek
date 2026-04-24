@@ -181,18 +181,18 @@ export default function CoverageView({ summary, access }) {
         <ScenarioBadge n={n} w={w} pop={pop} lam={lam} feasible={feasible} />
       </header>
 
-      <section className="coverage-map-wrap">
-        <div ref={containerRef} className="coverage-map" />
-        {(loading || edgesLoading) && <div className="progress-bar" />}
-        <BandLegend />
-      </section>
-
       <MetricsPanel
         current={current}
         baseline={baseline}
         bands={bands}
         feasible={feasible}
       />
+
+      <section className="coverage-map-wrap">
+        <div ref={containerRef} className="coverage-map" />
+        {(loading || edgesLoading) && <div className="progress-bar" />}
+        <BandLegend />
+      </section>
     </div>
   );
 }
