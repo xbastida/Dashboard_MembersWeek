@@ -18,7 +18,7 @@ Interactive dual-display visualization for a public exhibit. A horizontal projec
 
 ---
 
-## Setup
+## Setup (Linux / macOS)
 
 **Frontend dependencies:**
 ```bash
@@ -37,21 +37,82 @@ npm run sync-data
 
 ---
 
+## Setup (Windows)
+
+### 1 — Install Node.js
+
+Download the **LTS** installer from [nodejs.org](https://nodejs.org/) and run it. Accept all defaults. When it finishes, open **Command Prompt** or **PowerShell** and verify:
+
+```powershell
+node --version
+npm --version
+```
+
+### 2 — Install Python
+
+Download Python 3.9 or later from [python.org](https://www.python.org/downloads/windows/).
+
+> **Important:** on the first screen of the installer, tick **"Add Python to PATH"** before clicking *Install Now*. Without this tick, `python` and `pip` will not be found from the terminal.
+
+Verify in a new terminal window:
+
+```powershell
+python --version
+```
+
+### 3 — Install the Arduino IDE (to flash the sketch)
+
+Download from [arduino.cc/en/software](https://www.arduino.cc/en/software). Install and open it, connect your Arduino board via USB, then upload the sketch from the [Arduino sketch](#arduino-sketch) section below.
+
+Windows usually installs the CH340/FTDI driver automatically. If the board is not found, open **Device Manager** → **Ports (COM & LPT)** — the board will appear there (e.g. `COM3`) once the driver is installed.
+
+### 4 — Clone the repo and install dependencies
+
+```powershell
+git clone <repo-url>
+cd Dashboard_MembersWeek
+
+npm install
+```
+
+### 5 — Create a Python virtual environment and install bridge dependencies
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+You should see `(.venv)` at the start of your prompt when the environment is active. You need to run the activation command once per terminal session.
+
+### 6 — Sync simulation data
+
+```powershell
+npm run sync-data
+```
+
+---
+
 ## Running
 
 ### 1. Start the Python bridge
 
-Connect the Arduino via USB, then:
-
+**Linux / macOS:**
 ```bash
 python3 arduino_bridge.py --port /dev/ttyUSB0
-# Windows: python3 arduino_bridge.py --port COM3
 ```
 
-The bridge auto-detects the Arduino port if `--port` is omitted. Successful output:
+**Windows:**
+```powershell
+python arduino_bridge.py --port COM3
+```
+
+Replace `COM3` with the actual port shown in **Device Manager → Ports (COM & LPT)**. If you omit `--port` the bridge will try to auto-detect the board.
+
+Successful output looks like:
 
 ```
-Connected to Arduino on /dev/ttyUSB0 at 9600 baud
+Connected to Arduino on COM3 at 9600 baud
 WebSocket server started on ws://localhost:8765
 Dashboard connected (1 client(s))
 Sending to 1 client(s): {'n': 80.0, 'w': 1.0, 'pop': 90, 'lam': 0.3}
@@ -87,6 +148,21 @@ Drag each popup to its target display, then press `F11` for fullscreen. The map 
 | `F` | Toggle fullscreen |
 | `R` | Toggle adaptive-radius rings |
 | `←` / `→` | Cycle through N values |
+
+---
+
+## Windows troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `python` not found | Re-run the Python installer and tick **"Add Python to PATH"**, or add `C:\Users\<you>\AppData\Local\Programs\Python\Python3xx\` to your PATH manually |
+| `npm` not found | Re-run the Node.js installer; open a **new** terminal after installing |
+| `pip` not found | Run `python -m pip install -r requirements.txt` instead |
+| `pip install` fails with SSL error | Upgrade pip: `python -m pip install --upgrade pip` |
+| Arduino port not visible in Device Manager | Install the CH340 driver (search "CH340 driver Windows") or the FTDI driver depending on your board |
+| `Failed to open COM3` | Another program (Arduino IDE Serial Monitor, etc.) already has the port open — close it first |
+| Windows Firewall blocks WebSocket | Allow Python through the firewall when prompted, or add an inbound rule for port `8765` |
+| PowerShell blocks `.venv\Scripts\activate` | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, then retry |
 
 ---
 
@@ -164,7 +240,7 @@ npm run preview    # verify at http://localhost:4173
 Copy the `dist/` folder to the exhibit machine and serve it with any static file server. The Python bridge must run on the same machine (it only binds to `localhost`).
 
 **Startup order on exhibit day:**
-1. `python3 arduino_bridge.py --port <port>` — bridge first
+1. `python arduino_bridge.py --port <port>` — bridge first
 2. Serve `dist/` (or `npm run preview`)
 3. Open the launcher → pop out both windows → drag to displays → `F11`
 
@@ -191,9 +267,3 @@ scenarioStore.js (Zustand)
 MapView + CoverageView
     └─ re-render with new scenario
 ```
-
----
-
-## Cross-platform notes
-
-Pure Node + Vite + React — no shell scripts. Developed on Linux, works on Windows with the same commands. Serial ports appear as `COM3`, `COM4`, etc. on Windows instead of `/dev/ttyUSB0`.
