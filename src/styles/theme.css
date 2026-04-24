@@ -514,7 +514,7 @@ kbd {
 .arduino-control .arduino-error {
   color: var(--danger);
 }
-}
+
 .band-legend-item .swatch {
   width: 14px;
   height: 14px;

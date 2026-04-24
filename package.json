@@ -7,7 +7,8 @@
     "sync-data": "node scripts/sync-data.mjs",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "arduino-bridge": "python3 arduino_bridge.py"
   },
   "dependencies": {
     "@turf/turf": "^7.3.4",

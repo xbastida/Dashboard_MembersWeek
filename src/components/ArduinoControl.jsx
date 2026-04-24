@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useScenarioStore } from '../state/scenarioStore.js';
 
 function parseArduinoLine(line) {
@@ -49,11 +49,11 @@ function normalizeValue(key, value, params) {
 
 export default function ArduinoControl({ params }) {
   const setParam = useScenarioStore((s) => s.setParam);
-  const [status, setStatus] = useState('closed');
-  const [message, setMessage] = useState('Arduino not connected');
+  const [status, setStatus] = useState('disconnected');
+  const [message, setMessage] = useState('Python bridge not connected');
   const [error, setError] = useState(null);
-  const portRef = useRef(null);
-  const readerRef = useRef(null);
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   const applyPatch = useCallback(
     (patch) => {
@@ -68,75 +68,75 @@ export default function ArduinoControl({ params }) {
     [params, setParam],
   );
 
-  const readLoop = useCallback(async (reader) => {
-    let buffer = '';
+  const connect = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
+
+    setStatus('connecting');
+    setError(null);
+    setMessage('Connecting to Python bridge...');
+
     try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += value;
-        let index;
-        while ((index = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, index);
-          buffer = buffer.slice(index + 1);
-          const patch = parseArduinoLine(line);
-          if (patch) {
-            applyPatch(patch);
-            setMessage(`Last input: ${JSON.stringify(patch)}`);
-          }
+      const ws = new WebSocket('ws://localhost:8765');
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setStatus('connected');
+        setMessage('Receiving data from Arduino via Python...');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const patch = JSON.parse(event.data);
+          applyPatch(patch);
+          setMessage(`Last input: ${JSON.stringify(patch)}`);
+        } catch (parseError) {
+          setError(`Failed to parse message: ${parseError.message}`);
         }
-      }
-    } catch (readError) {
-      if (readError.name !== 'AbortError') {
-        setError(readError.message || String(readError));
-      }
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected');
+        setMessage('Python bridge disconnected');
+        wsRef.current = null;
+
+        // Auto-reconnect after 3 seconds
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (!wsRef.current) connect();
+        }, 3000);
+      };
+
+      ws.onerror = (wsError) => {
+        setError('WebSocket connection failed');
+        setStatus('disconnected');
+      };
+
+    } catch (connectError) {
+      setError(connectError.message || 'Failed to create WebSocket connection');
+      setStatus('disconnected');
     }
   }, [applyPatch]);
 
-  const disconnect = useCallback(async () => {
-    setStatus('closed');
-    setMessage('Arduino disconnected');
-    try {
-      if (readerRef.current) {
-        await readerRef.current.cancel();
-        readerRef.current.releaseLock();
-        readerRef.current = null;
-      }
-      if (portRef.current) {
-        await portRef.current.close();
-        portRef.current = null;
-      }
-    } catch (closeError) {
-      console.warn('Disconnect error', closeError);
+  const disconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setStatus('disconnected');
+    setMessage('Python bridge disconnected');
   }, []);
 
-  const connect = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !('serial' in navigator)) {
-      setError('Web Serial API not available in this browser. Use Chrome/Edge on localhost or https.');
-      return;
-    }
+  useEffect(() => {
+    // Auto-connect on mount
+    connect();
 
-    try {
-      setError(null);
-      const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 115200 });
-      portRef.current = port;
-      setStatus('connected');
-      setMessage('Receiving data from Arduino...');
-
-      const textDecoder = new TextDecoderStream();
-      const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-      const reader = textDecoder.readable.getReader();
-      readerRef.current = reader;
-      readLoop(reader).catch((readError) => setError(readError.message || String(readError)));
-
-      port.addEventListener('disconnect', disconnect);
-    } catch (connectError) {
-      setError(connectError.message || String(connectError));
-      setStatus('closed');
-    }
-  }, [disconnect, readLoop]);
+    return () => {
+      disconnect();
+    };
+  }, [connect, disconnect]);
 
   return (
     <div className="control-group">
@@ -145,7 +145,7 @@ export default function ArduinoControl({ params }) {
       </div>
       <div className="arduino-control">
         <button type="button" className="pill" onClick={status === 'connected' ? disconnect : connect}>
-          {status === 'connected' ? 'Disconnect' : 'Connect Arduino'}
+          {status === 'connected' ? 'Disconnect' : 'Connect to Python'}
         </button>
         <p className="arduino-status">{message}</p>
         {error ? <p className="arduino-error">{error}</p> : null}
