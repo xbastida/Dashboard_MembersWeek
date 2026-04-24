@@ -1,0 +1,27 @@
+{
+  "name": "dbizi-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sync-data": "node scripts/sync-data.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.3.4",
+    "lucide-react": "^1.7.0",
+    "maplibre-gl": "^5.22.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "proj4": "^2.20.8",
+    "vite": "^8.0.4"
+  }
+}
