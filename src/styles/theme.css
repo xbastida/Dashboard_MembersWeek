@@ -499,6 +499,22 @@ kbd {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+.arduino-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.arduino-control .arduino-status,
+.arduino-control .arduino-error {
+  margin: 0;
+  line-height: 1.4;
+  font-size: 0.88rem;
+}
+.arduino-control .arduino-error {
+  color: var(--danger);
+}
+}
 .band-legend-item .swatch {
   width: 14px;
   height: 14px;
