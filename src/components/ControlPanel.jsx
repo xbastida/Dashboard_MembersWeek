@@ -19,7 +19,7 @@ function ButtonGroup({ values, current, onPick, format = (v) => v }) {
   );
 }
 
-export default function ControlPanel({ params, feasible, status }) {
+export default function ControlPanel({ params, feasible }) {
   const n = useScenarioStore((s) => s.n);
   const w = useScenarioStore((s) => s.w);
   const pop = useScenarioStore((s) => s.pop);
@@ -100,25 +100,6 @@ export default function ControlPanel({ params, feasible, status }) {
       </div>
 
       <ArduinoControl params={params} />
-
-      <div className="control-footer">
-        <span className="control-footer-label">Status</span>
-        <span
-          className={`status-pill ${
-            status === 'loading'
-              ? 'loading'
-              : feasible === false
-              ? 'infeasible'
-              : 'feasible'
-          }`}
-        >
-          {status === 'loading'
-            ? 'Loading'
-            : feasible === false
-            ? 'Infeasible'
-            : 'Feasible'}
-        </span>
-      </div>
     </aside>
   );
 }

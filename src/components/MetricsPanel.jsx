@@ -46,7 +46,7 @@ function BandBar({ band, pctPopulation, pctWorkplaces }) {
 export default function MetricsPanel({ current, baseline, bands, feasible }) {
   return (
     <div className="metrics-panel">
-      <div className="headline-row">
+      <div className="headline-col">
         <div className="headline">
           <span className="headline-label">Population within 300m</span>
           <span className="headline-value tabular">
@@ -69,7 +69,7 @@ export default function MetricsPanel({ current, baseline, bands, feasible }) {
       </div>
 
       {feasible !== false && (
-        <>
+        <div className="bands-col">
           <div className="breakdown-header">
             <span>Band</span>
             <span className="muted">Population · Workplaces</span>
@@ -88,7 +88,7 @@ export default function MetricsPanel({ current, baseline, bands, feasible }) {
               );
             })}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
