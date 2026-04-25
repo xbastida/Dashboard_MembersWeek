@@ -15,7 +15,7 @@ Expected Arduino line format (sent once per loop, ending with \\n):
 """
 
 import asyncio
-import json
+import csv
 import os
 import re
 import sys
@@ -26,7 +26,7 @@ import argparse
 
 
 # ---------------------------------------------------------------------------
-# Parameter steps — loaded from optimisation_summary.json at startup
+# Parameter steps — loaded from optimisation_summary.csv at startup
 # ---------------------------------------------------------------------------
 
 PARAMS = {
@@ -37,18 +37,21 @@ PARAMS = {
 }
 
 def load_params(data_dir):
-    path = os.path.join(data_dir, 'optimisation_summary.json')
+    path = os.path.join(data_dir, 'optimisation_summary.csv')
     if not os.path.exists(path):
         print(f"Note: {path} not found, using built-in defaults")
         return
     try:
-        with open(path) as f:
-            rows = json.load(f)
-        if isinstance(rows, list):
-            PARAMS['n']   = sorted(set(r['N']           for r in rows))
-            PARAMS['w']   = sorted(set(r['W']           for r in rows))
-            PARAMS['pop'] = sorted(set(r['MIN_POP_PCT'] for r in rows))
-            PARAMS['lam'] = sorted(set(r['LAM']         for r in rows))
+        with open(path, newline='') as f:
+            rows = list(csv.DictReader(f))
+        if rows:
+            def coerce(v):
+                try: return float(v)
+                except (ValueError, TypeError): return v
+            PARAMS['n']   = sorted(set(coerce(r['N'])           for r in rows))
+            PARAMS['w']   = sorted(set(coerce(r['W'])           for r in rows))
+            PARAMS['pop'] = sorted(set(coerce(r['MIN_POP_PCT']) for r in rows))
+            PARAMS['lam'] = sorted(set(coerce(r['LAM'])         for r in rows))
         print(f"Parameters: N={PARAMS['n']}  W={PARAMS['w']}  POP={PARAMS['pop']}  LAM={PARAMS['lam']}")
     except Exception as e:
         print(f"Warning: could not load {path}: {e}")
@@ -250,6 +253,6 @@ if __name__ == "__main__":
     parser.add_argument('--port',           help='Serial port (auto-detect if omitted)')
     parser.add_argument('--baudrate',       type=int, default=9600,  help='Baud rate (default: 9600)')
     parser.add_argument('--websocket-port', type=int, default=8765,  help='WebSocket port (default: 8765)')
-    parser.add_argument('--data-dir', help='Directory containing optimisation_summary.json')
+    parser.add_argument('--data-dir', help='Directory containing optimisation_summary.csv')
     args = parser.parse_args()
     asyncio.run(main(args.port, args.baudrate, args.websocket_port, args.data_dir))

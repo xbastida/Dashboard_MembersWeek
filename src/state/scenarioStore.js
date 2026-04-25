@@ -8,6 +8,7 @@ export const useScenarioStore = create((set, get) => ({
   pop: null,
   lam: null,
   showScoreField: false,
+  showTrips: false,
   coverageBand: DEFAULT_BAND,
   params: null,
 

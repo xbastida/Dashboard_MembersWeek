@@ -1,6 +1,5 @@
-import { Activity, Layers, Map as MapIcon, Users } from 'lucide-react';
+import { Activity, Layers, Map as MapIcon, Users, Zap } from 'lucide-react';
 import { useScenarioStore } from '../state/scenarioStore.js';
-import ArduinoControl from './ArduinoControl.jsx';
 
 function ButtonGroup({ values, current, onPick, format = (v) => v }) {
   return (
@@ -19,12 +18,13 @@ function ButtonGroup({ values, current, onPick, format = (v) => v }) {
   );
 }
 
-export default function ControlPanel({ params, feasible }) {
+export default function ControlPanel({ params, status }) {
   const n = useScenarioStore((s) => s.n);
   const w = useScenarioStore((s) => s.w);
   const pop = useScenarioStore((s) => s.pop);
   const lam = useScenarioStore((s) => s.lam);
   const showScoreField = useScenarioStore((s) => s.showScoreField);
+  const showTrips = useScenarioStore((s) => s.showTrips);
   const setParam = useScenarioStore((s) => s.setParam);
 
   return (
@@ -99,7 +99,27 @@ export default function ControlPanel({ params, feasible }) {
         </button>
       </div>
 
-      <ArduinoControl params={params} />
+      <div className="control-group">
+        <div className="control-label">
+          <span>
+            <Zap size={14} /> Trip animation <kbd>T</kbd>
+          </span>
+        </div>
+        <button
+          type="button"
+          className={`pill wide ${showTrips ? 'active' : ''}`}
+          onClick={() => setParam('showTrips', !showTrips)}
+        >
+          {showTrips ? 'On' : 'Off'}
+        </button>
+      </div>
+
+      <div className="control-footer">
+        <span className="control-footer-label">Status</span>
+        <span className={`status-pill ${status === 'loading' ? 'loading' : 'feasible'}`}>
+          {status === 'loading' ? 'Loading' : 'Ready'}
+        </span>
+      </div>
     </aside>
   );
 }

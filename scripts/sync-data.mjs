@@ -27,31 +27,8 @@ async function main() {
   await cp(SRC, DEST, { recursive: true });
   console.log(`[sync-data] copied ${SRC} -> ${DEST}`);
 
-  await ensureSummaryJson();
-  console.log('[sync-data] summary json verified');
-
   const reprojected = await reprojectAllGeojson(DEST);
   console.log(`[sync-data] reprojected ${reprojected} geojson file(s) to EPSG:4326`);
-}
-
-async function ensureSummaryJson() {
-  const jsonPath = resolve(DEST, 'optimisation_summary.json');
-  const csvPath = resolve(DEST, 'optimisation_summary.csv');
-
-  let valid = false;
-  try {
-    const raw = await readFile(jsonPath, 'utf8');
-    const parsed = JSON.parse(raw);
-    valid = Array.isArray(parsed) && parsed.length > 0;
-  } catch {
-    valid = false;
-  }
-  if (valid) return;
-
-  console.log('[sync-data] regenerating optimisation_summary.json from csv');
-  const csv = await readFile(csvPath, 'utf8');
-  const rows = parseCsv(csv);
-  await writeFile(jsonPath, JSON.stringify(rows, null, 2));
 }
 
 async function reprojectAllGeojson(dir) {
@@ -133,57 +110,6 @@ function reprojectCoord(coord) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return coord;
   const [lng, lat] = toWGS84.forward([x, y]);
   return rest.length ? [lng, lat, ...rest] : [lng, lat];
-}
-
-function parseCsv(text) {
-  const lines = text.replace(/\r\n/g, '\n').split('\n').filter((l) => l.length);
-  if (!lines.length) return [];
-  const headers = splitCsvLine(lines[0]);
-  return lines.slice(1).map((line) => {
-    const cells = splitCsvLine(line);
-    const row = {};
-    headers.forEach((h, i) => {
-      row[h] = coerce(cells[i]);
-    });
-    return row;
-  });
-}
-
-function splitCsvLine(line) {
-  const out = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else if (c === '"') {
-        inQuotes = false;
-      } else {
-        cur += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ',') {
-      out.push(cur);
-      cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  out.push(cur);
-  return out;
-}
-
-function coerce(value) {
-  if (value == null || value === '') return null;
-  if (value === 'True' || value === 'true') return true;
-  if (value === 'False' || value === 'false') return false;
-  const n = Number(value);
-  if (!Number.isNaN(n) && value.trim() !== '') return n;
-  return value;
 }
 
 main().catch((err) => {

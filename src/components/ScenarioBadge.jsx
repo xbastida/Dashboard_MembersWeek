@@ -1,7 +1,7 @@
-export default function ScenarioBadge({ n, w, pop, lam, feasible }) {
+export default function ScenarioBadge({ n, w, pop, lam }) {
   if (n == null) return <div className="scenario-badge">—</div>;
   return (
-    <div className={`scenario-badge ${feasible === false ? 'infeasible' : ''}`}>
+    <div className="scenario-badge">
       <span>
         <em>N</em>={n}
       </span>
@@ -17,7 +17,6 @@ export default function ScenarioBadge({ n, w, pop, lam, feasible }) {
       <span>
         <em>λ</em>={lam}
       </span>
-      {feasible === false && <span className="badge-flag">Infeasible</span>}
     </div>
   );
 }

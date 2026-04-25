@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
+import { ensureWGS84 } from './reproject.js';
 
 const cache = new Map();
 
 function load(url) {
   if (cache.has(url)) return cache.get(url);
-  const promise = fetch(url).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return r.json();
-  });
+  const promise = fetch(url)
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return r.json();
+    })
+    .then(ensureWGS84);
   cache.set(url, promise);
   return promise;
 }

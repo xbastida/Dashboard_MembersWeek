@@ -30,7 +30,6 @@ export default function CoverageView({ summary, access }) {
 
   const key = scenarioKey({ n, w, pop, lam });
   const row = summary.lookup(n, w, pop, lam);
-  const feasible = row?.feasible ?? null;
 
   const { geojson: coverageFC, loading } = useScenarioGeoJson(key, { access: true });
   const { geojson: edgesFC, loading: edgesLoading } = useScenarioGeoJson(key, { edges: true });
@@ -48,6 +47,9 @@ export default function CoverageView({ summary, access }) {
   }, [summary.params, n, w, pop, lam]);
   const baselineEntry = access.lookup(baselineKey);
   const baseline = coveredWithin300m(baselineEntry);
+
+  const predictedTrips = row?.predicted_trips_yr ?? null;
+  const vsCurrentPct = row?.vs_current_pct ?? null;
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -167,32 +169,26 @@ export default function CoverageView({ summary, access }) {
     applyStations(map, stationsFC);
   }, [stationsFC]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const container = map.getContainer();
-    container.style.opacity = feasible === false ? '0.45' : '1';
-  }, [feasible]);
-
   return (
     <div className="coverage-view">
       <header className="coverage-header">
         <span className="header-kicker">Coverage</span>
-        <ScenarioBadge n={n} w={w} pop={pop} lam={lam} feasible={feasible} />
+        <ScenarioBadge n={n} w={w} pop={pop} lam={lam} />
       </header>
-
-      <MetricsPanel
-        current={current}
-        baseline={baseline}
-        bands={bands}
-        feasible={feasible}
-      />
 
       <section className="coverage-map-wrap">
         <div ref={containerRef} className="coverage-map" />
         {(loading || edgesLoading) && <div className="progress-bar" />}
         <BandLegend />
       </section>
+
+      <MetricsPanel
+        current={current}
+        baseline={baseline}
+        bands={bands}
+        predictedTrips={predictedTrips}
+        vsCurrentPct={vsCurrentPct}
+      />
     </div>
   );
 }

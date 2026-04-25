@@ -164,7 +164,6 @@ kbd {
   display: flex;
   width: 100%;
   height: 100%;
-  position: relative;
 }
 
 .map-main {
@@ -225,28 +224,113 @@ kbd {
   z-index: 10;
 }
 
-/* Control panel — 2-column grid in the bottom-right of the map */
-.control-panel {
+/* Trip animation canvas overlay */
+.trips-canvas {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 10;
-  width: 440px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Trip animation controls bar */
+.trip-overlay {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
   background: var(--panel);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px 20px;
+  border-radius: 14px;
+  z-index: 10;
+  min-width: 420px;
+  max-width: 680px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
-.control-panel header {
-  display: none;
+
+.trip-play-btn {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 1rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 150ms;
 }
-.control-panel .arduino-status,
-.control-panel .arduino-error {
-  display: none;
+.trip-play-btn:hover {
+  background: rgba(34, 211, 238, 0.22);
+}
+
+.trip-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  min-width: 42px;
+}
+
+.trip-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.2);
+  outline: none;
+  cursor: pointer;
+}
+.trip-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.35);
+}
+.trip-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+
+.trip-active-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 58px;
+  text-align: right;
+}
+
+/* Control panel */
+.control-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border);
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
 }
 .control-panel header h1 {
   margin: 0 0 2px;
@@ -321,6 +405,43 @@ kbd {
   width: 100%;
 }
 
+.control-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.control-footer-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.status-pill.feasible {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--ok);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+.status-pill.infeasible {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--danger);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+.status-pill.loading {
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--warn);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
 
 /* Bottom metric strip */
 .metric-strip {
@@ -439,8 +560,7 @@ kbd {
 
 .coverage-map-wrap {
   position: relative;
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 58%;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -474,22 +594,6 @@ kbd {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-
-.arduino-control {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.arduino-control .arduino-status,
-.arduino-control .arduino-error {
-  margin: 0;
-  line-height: 1.4;
-  font-size: 0.88rem;
-}
-.arduino-control .arduino-error {
-  color: var(--danger);
-}
-
 .band-legend-item .swatch {
   width: 14px;
   height: 14px;
@@ -499,27 +603,17 @@ kbd {
 
 /* Metrics panel */
 .metrics-panel {
-  flex: 0 0 auto;
+  flex: 1;
+  min-height: 0;
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 16px;
 }
 
-.headline-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-.bands-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.headline-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 .headline {
   background: var(--panel);
@@ -542,6 +636,10 @@ kbd {
   letter-spacing: -0.02em;
   line-height: 1.05;
   color: var(--text);
+}
+
+.headline--trips {
+  grid-column: 1 / -1;
 }
 .delta {
   font-size: 0.78rem;
@@ -614,8 +712,24 @@ kbd {
   color: var(--text);
 }
 
-/* Landscape fallback (dev on a regular monitor) — keep same column layout */
+/* Landscape fallback (dev on a regular monitor) */
 @media (orientation: landscape) and (min-width: 1100px) {
+  .coverage-view {
+    display: grid;
+    grid-template-columns: 58% 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+  .coverage-header {
+    grid-column: 1 / -1;
+  }
+  .coverage-map-wrap {
+    flex: 1;
+    height: 100%;
+  }
+  .metrics-panel {
+    min-height: 0;
+  }
   .headline-value {
     font-size: 2.8rem;
   }

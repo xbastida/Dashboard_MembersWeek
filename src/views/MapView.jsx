@@ -1,32 +1,147 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import * as turf from '@turf/turf';
 import ControlPanel from '../components/ControlPanel.jsx';
 import { useScenarioStore, scenarioKey } from '../state/scenarioStore.js';
 import { useScenarioGeoJson } from '../data/useScenario.js';
+import { useScenarioTrips } from '../data/useScenarioTrips.js';
 import { STATION_COLORS, matchExprFor } from '../components/map/coverageColors.js';
 
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const CENTER = [-1.98, 43.31];
+const SIM_START = 6 * 3600;   // 06:00 in seconds
+const SIM_END   = 24 * 3600;  // 24:00 in seconds
+const SIM_SPEED = 600;         // sim-seconds per wall-clock second (10 sim-min per real-sec)
+
+function fmtTime(sec) {
+  const s = Math.max(SIM_START, Math.min(SIM_END, sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function countActive(tripsData, t) {
+  if (!tripsData?.trips) return 0;
+  let n = 0;
+  for (const tr of tripsData.trips) {
+    if (tr.t <= t && t < tr.t + tr.dur) n++;
+  }
+  return n;
+}
+
+function drawFrame(map, canvas, tripsData, tSec) {
+  if (!canvas) return;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  if (w === 0 || h === 0) return;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  if (!tripsData?.trips || !map) return;
+
+  const { routes, trips } = tripsData;
+
+  for (const trip of trips) {
+    const progress = (tSec - trip.t) / trip.dur;
+    if (progress <= 0 || progress > 1) continue;
+
+    const path = routes[trip.r];
+    if (!path || path.length < 2) continue;
+
+    // Project all waypoints to screen coordinates
+    const pts = path.map(([lon, lat]) => map.project([lon, lat]));
+
+    // Cumulative screen-space arc lengths
+    const lens = [0];
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i - 1].x;
+      const dy = pts[i].y - pts[i - 1].y;
+      lens.push(lens[i - 1] + Math.hypot(dx, dy));
+    }
+    const totalLen = lens[lens.length - 1];
+    if (totalLen < 1) continue;
+
+    const target = progress * totalLen;
+
+    // Locate the head position along the polyline
+    let headX = pts[pts.length - 1].x;
+    let headY = pts[pts.length - 1].y;
+    let headSeg = pts.length - 2;
+    for (let i = 1; i < pts.length; i++) {
+      if (lens[i] >= target) {
+        const frac = (target - lens[i - 1]) / (lens[i] - lens[i - 1]);
+        headX = pts[i - 1].x + frac * (pts[i].x - pts[i - 1].x);
+        headY = pts[i - 1].y + frac * (pts[i].y - pts[i - 1].y);
+        headSeg = i - 1;
+        break;
+      }
+    }
+
+    // Draw trail: all full segments up to headSeg, then partial last segment
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i <= headSeg; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.lineTo(headX, headY);
+    ctx.strokeStyle = 'rgba(34,211,238,0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Glowing head dot
+    ctx.beginPath();
+    ctx.arc(headX, headY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#e0f9ff';
+    ctx.fill();
+  }
+}
 
 export default function MapView({ summary }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const styleReadyRef = useRef(false);
+  const canvasRef = useRef(null);
+  const animRef = useRef(null);
+  const tripTimeRef = useRef(SIM_START);
+  const playingRef = useRef(false);
+  const tripsRef = useRef(null);
+  const lastUIUpdateRef = useRef(0);
 
   const n = useScenarioStore((s) => s.n);
   const w = useScenarioStore((s) => s.w);
   const pop = useScenarioStore((s) => s.pop);
   const lam = useScenarioStore((s) => s.lam);
   const showScoreField = useScenarioStore((s) => s.showScoreField);
+  const showTrips = useScenarioStore((s) => s.showTrips);
   const setParam = useScenarioStore((s) => s.setParam);
 
   const key = scenarioKey({ n, w, pop, lam });
-  const row = summary.lookup(n, w, pop, lam);
-  const feasible = row?.feasible ?? null;
 
   const { geojson, loading } = useScenarioGeoJson(key);
+  const { trips } = useScenarioTrips(key);
 
+  // local UI state for the trip overlay
+  const [tripTimeSec, setTripTimeSec] = useState(SIM_START);
+  const [tripPlaying, setTripPlaying] = useState(false);
+  const [activeCount, setActiveCount] = useState(0);
+
+  // keep tripsRef fresh so the RAF closure always has latest data
+  useEffect(() => { tripsRef.current = trips; }, [trips]);
+
+  // reset time when scenario changes
+  useEffect(() => {
+    tripTimeRef.current = SIM_START;
+    setTripTimeSec(SIM_START);
+    setActiveCount(0);
+  }, [key]);
+
+  // mirror tripPlaying into ref so RAF can read it without closure staleness
+  useEffect(() => { playingRef.current = tripPlaying; }, [tripPlaying]);
+
+  // -------------------------------------------------------
+  // MapLibre init (runs once)
+  // -------------------------------------------------------
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
 
@@ -39,7 +154,6 @@ export default function MapView({ summary }) {
     });
 
     map.on('load', () => {
-      // Score field underlay (loaded once, toggleable)
       map.addSource('score-field', emptyFC());
       map.addLayer({
         id: 'score-field-fill',
@@ -143,7 +257,6 @@ export default function MapView({ summary }) {
       styleReadyRef.current = true;
       mapRef.current = map;
 
-      // flush-in any pending data
       if (map.__pendingData) {
         applyGeoJson(map, map.__pendingData);
         map.__pendingData = null;
@@ -159,6 +272,54 @@ export default function MapView({ summary }) {
     };
   }, []);
 
+  // -------------------------------------------------------
+  // Trip animation RAF
+  // -------------------------------------------------------
+  useEffect(() => {
+    if (!showTrips) {
+      if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+      return;
+    }
+
+    function frame(wallTs) {
+      if (playingRef.current) {
+        const last = frame._last;
+        if (last != null) {
+          const dt = (wallTs - last) / 1000;
+          tripTimeRef.current += dt * SIM_SPEED;
+          if (tripTimeRef.current >= SIM_END) tripTimeRef.current = SIM_START;
+        }
+        frame._last = wallTs;
+      } else {
+        frame._last = null;
+      }
+
+      drawFrame(mapRef.current, canvasRef.current, tripsRef.current, tripTimeRef.current);
+
+      if (wallTs - lastUIUpdateRef.current > 150) {
+        const t = Math.round(tripTimeRef.current);
+        setTripTimeSec(t);
+        setActiveCount(countActive(tripsRef.current, t));
+        lastUIUpdateRef.current = wallTs;
+      }
+
+      animRef.current = requestAnimationFrame(frame);
+    }
+    frame._last = null;
+
+    animRef.current = requestAnimationFrame(frame);
+    return () => {
+      if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
+    };
+  }, [showTrips]); // trips updates are handled via tripsRef
+
+  // -------------------------------------------------------
+  // Apply station GeoJSON
+  // -------------------------------------------------------
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -169,47 +330,89 @@ export default function MapView({ summary }) {
     applyGeoJson(map, geojson);
   }, [geojson]);
 
+  // -------------------------------------------------------
+  // Score field visibility
+  // -------------------------------------------------------
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReadyRef.current) return;
     map.setLayoutProperty('score-field-fill', 'visibility', showScoreField ? 'visible' : 'none');
   }, [showScoreField]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const container = map.getContainer();
-    container.style.opacity = feasible === false ? '0.55' : '1';
-  }, [feasible]);
-
+  // -------------------------------------------------------
+  // Keyboard shortcuts
+  // -------------------------------------------------------
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'f' || e.key === 'F') toggleFullscreen();
       if (e.key === 'd' || e.key === 'D') setParam('showScoreField', !showScoreField);
+      if (e.key === 't' || e.key === 'T') setParam('showTrips', !showTrips);
       if (e.key === 'ArrowRight') cycle(summary.params.N, n, 1, (v) => setParam('n', v));
       if (e.key === 'ArrowLeft') cycle(summary.params.N, n, -1, (v) => setParam('n', v));
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [n, showScoreField, setParam, summary.params.N]);
+  }, [n, showScoreField, showTrips, setParam, summary.params.N]);
+
+  // slider handler
+  function onSliderChange(e) {
+    const t = Number(e.target.value);
+    tripTimeRef.current = t;
+    setTripTimeSec(t);
+    setActiveCount(countActive(tripsRef.current, t));
+  }
+
+  function togglePlay() {
+    setTripPlaying((p) => !p);
+  }
 
   return (
     <div className="map-view">
       <ControlPanel
         params={summary.params}
-        feasible={feasible}
         status={loading ? 'loading' : 'ready'}
       />
 
       <main className="map-main">
         <div ref={containerRef} className="map-container" />
 
+        {/* trip animation canvas overlay */}
+        <canvas
+          ref={canvasRef}
+          className="trips-canvas"
+          style={{ display: showTrips ? 'block' : 'none' }}
+        />
+
         {loading && <div className="progress-bar" />}
 
-        {feasible === false && (
-          <div className="infeasible-pill">Infeasible combination</div>
-        )}
+        {showTrips && (
+          <div className="trip-overlay">
+            <button
+              type="button"
+              className="trip-play-btn"
+              onClick={togglePlay}
+              title={tripPlaying ? 'Pause' : 'Play'}
+            >
+              {tripPlaying ? '⏸' : '▶'}
+            </button>
 
+            <span className="trip-clock">{fmtTime(tripTimeSec)}</span>
+
+            <input
+              type="range"
+              className="trip-slider"
+              min={SIM_START}
+              max={SIM_END}
+              step={60}
+              value={tripTimeSec}
+              onChange={onSliderChange}
+            />
+
+            <span className="trip-active-count">
+              {activeCount} active
+            </span>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -238,11 +441,7 @@ function applyGeoJson(map, geojson) {
   for (const f of geojson.features || []) {
     if (!f.geometry) continue;
     let center;
-    try {
-      center = turf.centroid(f);
-    } catch {
-      continue;
-    }
+    try { center = turf.centroid(f); } catch { continue; }
     center.properties = { ...f.properties };
     centroids.push(center);
 
@@ -259,33 +458,19 @@ function applyGeoJson(map, geojson) {
   pointsSrc.setData(turf.featureCollection(centroids));
 
   const valid = allCoords.filter(
-    (c) =>
-      Array.isArray(c) &&
-      Number.isFinite(c[0]) &&
-      Number.isFinite(c[1]) &&
-      c[1] >= -90 &&
-      c[1] <= 90 &&
-      c[0] >= -180 &&
-      c[0] <= 180
+    (c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]) &&
+           c[1] >= -90 && c[1] <= 90 && c[0] >= -180 && c[0] <= 180
   );
   if (valid.length > 0) {
-    let minLng = valid[0][0];
-    let minLat = valid[0][1];
-    let maxLng = valid[0][0];
-    let maxLat = valid[0][1];
-    for (const c of valid) {
-      if (c[0] < minLng) minLng = c[0];
-      if (c[1] < minLat) minLat = c[1];
-      if (c[0] > maxLng) maxLng = c[0];
-      if (c[1] > maxLat) maxLat = c[1];
+    let [minLng, minLat] = valid[0];
+    let [maxLng, maxLat] = valid[0];
+    for (const [lo, la] of valid) {
+      if (lo < minLng) minLng = lo;
+      if (la < minLat) minLat = la;
+      if (lo > maxLng) maxLng = lo;
+      if (la > maxLat) maxLat = la;
     }
-    map.fitBounds(
-      [
-        [minLng, minLat],
-        [maxLng, maxLat],
-      ],
-      { padding: 60, duration: 800, maxZoom: 14 }
-    );
+    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, duration: 800, maxZoom: 14 });
   }
 }
 
@@ -293,12 +478,10 @@ function cycle(values, current, dir, setter) {
   if (!values?.length) return;
   const idx = values.indexOf(current);
   if (idx < 0) return setter(values[0]);
-  const next = (idx + dir + values.length) % values.length;
-  setter(values[next]);
+  setter(values[(idx + dir + values.length) % values.length]);
 }
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
   else document.exitFullscreen?.();
 }
-

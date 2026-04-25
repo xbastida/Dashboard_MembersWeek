@@ -177,7 +177,7 @@ Drag each popup to its target display, then press `F11` for fullscreen. The map 
 | 4 | D4 | Button | Proximity penalty LAM ↓ |
 | 5 | D5 | Button | Proximity penalty LAM ↑ |
 
-Valid parameter steps loaded from `optimisation_summary.json`:
+Valid parameter steps loaded from `optimisation_summary.csv`:
 
 | Parameter | Valid values |
 |-----------|-------------|

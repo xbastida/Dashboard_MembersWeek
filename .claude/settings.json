@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c \"import json; d=json.load\\(open\\('/home/xabi9/Documents/Sources/Dashboard_MembersWeek/public/data/optimisation_summary.json'\\)\\); print\\(list\\(d.keys\\(\\)\\)[:10]\\); print\\({k:v for k,v in d.items\\(\\) if k in \\('params','N','W','POP','LAM','parameters'\\)}\\)\")",
+      "Bash(python3 -c \"import csv; rows=list\\(csv.DictReader\\(open\\('/home/xabi9/Documents/Sources/Dashboard_MembersWeek/public/data/optimisation_summary.csv'\\)\\)\\); print\\(list\\(rows[0].keys\\(\\)\\)[:10] if rows else []\\); print\\({k:sorted\\(set\\(r[k] for r in rows\\)\\) for k in \\('N','W','MIN_POP_PCT','LAM'\\) if rows and k in rows[0]}\\)\")",
       "Bash(python3 -c ' *)"
     ]
   }

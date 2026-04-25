@@ -10,13 +10,28 @@ export function useSummary() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/data/optimisation_summary.json')
+    fetch('/data/optimisation_summary.csv')
       .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status} loading optimisation_summary.json`);
-        return r.json();
+        if (!r.ok) throw new Error(`HTTP ${r.status} loading optimisation_summary.csv`);
+        return r.text();
       })
-      .then((rows) => {
-        if (!cancelled) setData(rows);
+      .then((text) => {
+        if (cancelled) return;
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',');
+        const rows = lines.slice(1).map((line) => {
+          const values = line.split(',');
+          const obj = {};
+          headers.forEach((h, i) => {
+            const v = values[i];
+            if (v === 'True') obj[h] = true;
+            else if (v === 'False') obj[h] = false;
+            else if (v !== '' && !isNaN(Number(v))) obj[h] = Number(v);
+            else obj[h] = v;
+          });
+          return obj;
+        });
+        setData(rows);
       })
       .catch((e) => {
         if (!cancelled) setError(e);
