@@ -1,5 +1,6 @@
 import { Activity, Layers, Map as MapIcon, Users, Zap } from 'lucide-react';
 import { useScenarioStore } from '../state/scenarioStore.js';
+import ArduinoControl from './ArduinoControl.jsx';
 
 function ButtonGroup({ values, current, onPick, format = (v) => v }) {
   return (
@@ -113,6 +114,8 @@ export default function ControlPanel({ params, status }) {
           {showTrips ? 'On' : 'Off'}
         </button>
       </div>
+
+      <ArduinoControl params={params} />
 
       <div className="control-footer">
         <span className="control-footer-label">Status</span>

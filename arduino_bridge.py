@@ -16,6 +16,7 @@ Expected Arduino line format (sent once per loop, ending with \\n):
 
 import asyncio
 import csv
+import json
 import os
 import re
 import sys
@@ -26,7 +27,7 @@ import argparse
 
 
 # ---------------------------------------------------------------------------
-# Parameter steps — loaded from optimisation_summary.csv at startup
+# Parameter steps — loaded from optimisation_summary.json at startup
 # ---------------------------------------------------------------------------
 
 PARAMS = {
@@ -188,6 +189,17 @@ async def serial_broadcaster(ser):
 async def websocket_handler(websocket, _ser):
     connected_clients.add(websocket)
     print(f"Dashboard connected ({len(connected_clients)} client(s))")
+    # Push current known state so the client syncs immediately
+    current = {
+        **_last_sent,
+        'w':   PARAMS['w'][_state['w_idx']],
+        'lam': PARAMS['lam'][_state['lam_idx']],
+    }
+    if current:
+        try:
+            await websocket.send(json.dumps(current))
+        except Exception:
+            pass
     try:
         await websocket.wait_closed()
     except Exception:
