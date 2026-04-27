@@ -43,8 +43,8 @@ function BandBar({ band, pctPopulation, pctWorkplaces }) {
         </div>
       </div>
       <span className="band-bar-values">
-        <span>{pop.toFixed(1)}%</span>
-        <span className="muted">{work.toFixed(1)}%</span>
+        <span className="band-bar-value-pop">{pop.toFixed(1)}%</span>
+        <span className="band-bar-value-work muted">{work.toFixed(1)}%</span>
       </span>
     </div>
   );

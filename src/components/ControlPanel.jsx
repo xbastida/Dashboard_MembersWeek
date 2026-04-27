@@ -44,18 +44,6 @@ export default function ControlPanel({ params, status }) {
         <div className="control-group">
           <div className="control-label">
             <span>
-              <Layers size={14} /> Proximity penalty <em>λ</em>
-            </span>
-            <strong>{lam != null ? lam : '—'}</strong>
-          </div>
-          <ButtonGroup values={params.LAM} current={lam} onPick={(v) => setParam('lam', v)} />
-        </div>
-      </div>
-
-      <div className="control-row control-row--secondary">
-        <div className="control-group">
-          <div className="control-label">
-            <span>
               <Activity size={14} /> Demand weight <em>W</em>
             </span>
             <strong>{w != null ? w.toFixed(2) : '—'}</strong>
@@ -67,6 +55,19 @@ export default function ControlPanel({ params, status }) {
             format={(v) => v.toFixed(2)}
           />
         </div>
+
+        <div className="control-group">
+          <div className="control-label">
+            <span>
+              <Layers size={14} /> Proximity penalty <em>λ</em>
+            </span>
+            <strong>{lam != null ? lam : '—'}</strong>
+          </div>
+          <ButtonGroup values={params.LAM} current={lam} onPick={(v) => setParam('lam', v)} />
+        </div>
+      </div>
+
+      <div className="control-row control-row--secondary">
 
         <div className="control-group">
           <div className="control-label">

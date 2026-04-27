@@ -328,7 +328,7 @@ kbd {
   background: var(--panel);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
-  padding: 12px 22px;
+  padding: 12px 22px 36px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -337,9 +337,21 @@ kbd {
 .control-row {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 18px;
   width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.control-row--primary .button-group {
+  flex-wrap: wrap;
+}
+.control-row--primary .pill {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 0.68rem;
+  border-radius: 8px;
 }
 .control-row--primary .control-group {
   flex: 1;
@@ -357,7 +369,8 @@ kbd {
   padding: 4px 8px;
   font-size: 0.72rem;
 }
-.control-row--secondary .control-label {
+.control-row--secondary .control-label,
+.control-row--primary .control-label {
   font-size: 0.7rem;
 }
 .arduino-control {
@@ -759,8 +772,17 @@ kbd {
 }
 .band-bar-values {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 3px;
   color: var(--text);
+  line-height: 10px;
+}
+.band-bar-value-pop,
+.band-bar-value-work {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 10px;
 }
 
 /* Vertical screen: KPIs on top, map below — bigger metrics for readability */
