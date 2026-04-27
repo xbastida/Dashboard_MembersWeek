@@ -101,6 +101,7 @@ export default function MapView({ summary }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const styleReadyRef = useRef(false);
+  const didFitRef = useRef(false);
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const tripTimeRef = useRef(SIM_START);
@@ -258,7 +259,8 @@ export default function MapView({ summary }) {
       mapRef.current = map;
 
       if (map.__pendingData) {
-        applyGeoJson(map, map.__pendingData);
+        applyGeoJson(map, map.__pendingData, !didFitRef.current);
+        if (map.__pendingData) didFitRef.current = true;
         map.__pendingData = null;
       }
     });
@@ -327,7 +329,8 @@ export default function MapView({ summary }) {
       map.__pendingData = geojson;
       return;
     }
-    applyGeoJson(map, geojson);
+    applyGeoJson(map, geojson, !didFitRef.current);
+    if (geojson) didFitRef.current = true;
   }, [geojson]);
 
   // -------------------------------------------------------
@@ -368,11 +371,6 @@ export default function MapView({ summary }) {
 
   return (
     <div className="map-view">
-      <ControlPanel
-        params={summary.params}
-        status={loading ? 'loading' : 'ready'}
-      />
-
       <main className="map-main">
         <div ref={containerRef} className="map-container" />
 
@@ -414,6 +412,11 @@ export default function MapView({ summary }) {
           </div>
         )}
       </main>
+
+      <ControlPanel
+        params={summary.params}
+        status={loading ? 'loading' : 'ready'}
+      />
     </div>
   );
 }
@@ -422,7 +425,7 @@ function emptyFC() {
   return { type: 'geojson', data: { type: 'FeatureCollection', features: [] } };
 }
 
-function applyGeoJson(map, geojson) {
+function applyGeoJson(map, geojson, fit = true) {
   const fillSrc = map.getSource('stations');
   const pointsSrc = map.getSource('stations-centroids');
   if (!fillSrc || !pointsSrc) return;
@@ -461,7 +464,7 @@ function applyGeoJson(map, geojson) {
     (c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]) &&
            c[1] >= -90 && c[1] <= 90 && c[0] >= -180 && c[0] <= 180
   );
-  if (valid.length > 0) {
+  if (fit && valid.length > 0) {
     let [minLng, minLat] = valid[0];
     let [maxLng, maxLat] = valid[0];
     for (const [lo, la] of valid) {

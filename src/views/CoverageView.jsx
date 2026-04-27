@@ -6,7 +6,7 @@ import BandLegend from '../components/BandLegend.jsx';
 import MetricsPanel from '../components/MetricsPanel.jsx';
 import { useScenarioStore, scenarioKey } from '../state/scenarioStore.js';
 import { useScenarioGeoJson } from '../data/useScenario.js';
-import { bandBreakdown, coveredWithin300m } from '../data/useAccessSummary.js';
+import { bandBreakdown, coveredWithin100m } from '../data/useAccessSummary.js';
 import {
   BAND_COLORS,
   BAND_COLOR_FALLBACK,
@@ -36,7 +36,7 @@ export default function CoverageView({ summary, access }) {
   const { geojson: stationsFC } = useScenarioGeoJson(key);
 
   const accessEntry = access.lookup(key);
-  const current = coveredWithin300m(accessEntry);
+  const current = coveredWithin100m(accessEntry);
   const bands = bandBreakdown(accessEntry);
 
   const baselineKey = useMemo(() => {
@@ -46,7 +46,7 @@ export default function CoverageView({ summary, access }) {
     return scenarioKey({ n: minN, w, pop, lam });
   }, [summary.params, n, w, pop, lam]);
   const baselineEntry = access.lookup(baselineKey);
-  const baseline = coveredWithin300m(baselineEntry);
+  const baseline = coveredWithin100m(baselineEntry);
 
   const predictedTrips = row?.predicted_trips_yr ?? null;
   const vsCurrentPct = row?.vs_current_pct ?? null;
@@ -60,7 +60,6 @@ export default function CoverageView({ summary, access }) {
       center: CENTER,
       zoom: 12.2,
       attributionControl: { compact: true },
-      interactive: false,
     });
 
     map.on('load', () => {
@@ -176,12 +175,6 @@ export default function CoverageView({ summary, access }) {
         <ScenarioBadge n={n} w={w} pop={pop} lam={lam} />
       </header>
 
-      <section className="coverage-map-wrap">
-        <div ref={containerRef} className="coverage-map" />
-        {(loading || edgesLoading) && <div className="progress-bar" />}
-        <BandLegend />
-      </section>
-
       <MetricsPanel
         current={current}
         baseline={baseline}
@@ -189,6 +182,12 @@ export default function CoverageView({ summary, access }) {
         predictedTrips={predictedTrips}
         vsCurrentPct={vsCurrentPct}
       />
+
+      <section className="coverage-map-wrap">
+        <div ref={containerRef} className="coverage-map" />
+        {(loading || edgesLoading) && <div className="progress-bar" />}
+        <BandLegend />
+      </section>
     </div>
   );
 }

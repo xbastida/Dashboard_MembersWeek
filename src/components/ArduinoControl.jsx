@@ -31,9 +31,10 @@ function parseArduinoLine(line) {
   }
 }
 
+// params keys may be uppercase (N, W, POP, LAM) or lowercase — check both
 function normalizeValue(key, value, params) {
-  if (!params || !params[key]) return value;
-  const allowed = params[key];
+  if (!params) return value;
+  const allowed = params[key] ?? params[key.toUpperCase()];
   if (!Array.isArray(allowed) || allowed.length === 0) return value;
   let best = allowed[0];
   let bestDistance = Math.abs(value - best);
@@ -54,8 +55,11 @@ export default function ArduinoControl({ params }) {
   const [error, setError] = useState(null);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  // Keep a ref so connect() doesn't need applyPatch in its deps and won't
+  // trigger reconnects when params changes reference
+  const applyPatchRef = useRef(null);
 
-  const applyPatch = useCallback(
+  applyPatchRef.current = useCallback(
     (patch) => {
       const allowedKeys = ['n', 'w', 'pop', 'lam', 'showScoreField'];
       for (const [rawKey, rawValue] of Object.entries(patch)) {
@@ -87,7 +91,7 @@ export default function ArduinoControl({ params }) {
       ws.onmessage = (event) => {
         try {
           const patch = JSON.parse(event.data);
-          applyPatch(patch);
+          applyPatchRef.current(patch);
           setMessage(`Last input: ${JSON.stringify(patch)}`);
         } catch (parseError) {
           setError(`Failed to parse message: ${parseError.message}`);
@@ -105,7 +109,7 @@ export default function ArduinoControl({ params }) {
         }, 3000);
       };
 
-      ws.onerror = (wsError) => {
+      ws.onerror = () => {
         setError('WebSocket connection failed');
         setStatus('disconnected');
       };
@@ -114,7 +118,7 @@ export default function ArduinoControl({ params }) {
       setError(connectError.message || 'Failed to create WebSocket connection');
       setStatus('disconnected');
     }
-  }, [applyPatch]);
+  }, []);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -130,13 +134,9 @@ export default function ArduinoControl({ params }) {
   }, []);
 
   useEffect(() => {
-    // Auto-connect on mount
     connect();
-
-    return () => {
-      disconnect();
-    };
-  }, [connect, disconnect]);
+    return () => disconnect();
+  }, []);
 
   return (
     <div className="control-group">

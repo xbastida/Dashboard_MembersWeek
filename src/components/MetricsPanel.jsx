@@ -66,13 +66,13 @@ export default function MetricsPanel({ current, baseline, bands, predictedTrips,
     <div className="metrics-panel">
       <div className="headline-row">
         <div className="headline">
-          <span className="headline-label">Population within 300m</span>
+          <span className="headline-label">Population within 100m</span>
           <span className="headline-value tabular">{formatPct(current.population)}</span>
           <DeltaChip current={current.population} baseline={baseline.population} />
         </div>
 
         <div className="headline">
-          <span className="headline-label">Workplaces within 300m</span>
+          <span className="headline-label">Workplaces within 100m</span>
           <span className="headline-value tabular">{formatPct(current.workplaces)}</span>
           <DeltaChip current={current.workplaces} baseline={baseline.workplaces} />
         </div>

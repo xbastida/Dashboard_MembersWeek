@@ -32,6 +32,16 @@ export function useAccessSummary() {
 
 const CUMULATIVE_BANDS = ['100m', '200m', '300m'];
 
+export function coveredWithin100m(entry) {
+  if (!entry || !entry.by_category) return { population: null, workplaces: null };
+  const b = entry.by_category['100m'];
+  if (!b) return { population: null, workplaces: null };
+  return {
+    population: b.pct_population_of_city || 0,
+    workplaces: b.pct_workplaces_of_city || 0,
+  };
+}
+
 export function coveredWithin300m(entry) {
   if (!entry || !entry.by_category) return { population: null, workplaces: null };
   let pop = 0;
